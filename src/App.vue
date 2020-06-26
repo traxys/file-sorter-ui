@@ -7,7 +7,7 @@
 			>
 			<v-list dense>
 				<template v-for="source in sourceNames">
-					<v-list-item link :key="source">
+					<v-list-item link :key="source" @click="setCurrentSource(source)">
 						<v-list-item-action>
 							<v-icon>mdi-folder-move</v-icon>
 						</v-list-item-action>
@@ -71,6 +71,16 @@
 					align="center"
 					justify="center"
 					>
+					<v-list v-if="currentFiles != null && currentFiles.length > 0" min-width="30%">
+						<v-list-item v-for="file in currentFiles" :key="file" link>
+							<v-list-item-icon>
+								<v-icon>mdi-file</v-icon>
+							</v-list-item-icon>
+							<v-list-item-content>
+								<v-list-item-title v-text="file"></v-list-item-title>
+							</v-list-item-content>
+						</v-list-item>
+					</v-list>
 				</v-row>
 			</v-container>
 		</v-main>
@@ -98,13 +108,27 @@ export default {
 		jwt: null,
 		savePassword: true,
 		sources: {},
+		currentSource: null,
 	}),
 	computed: {
 		sourceNames: function() {
-			const names = Object.getOwnPropertyNames(this.sources).filter((value) => value != "__ob__");
-			console.log(names);
+			const names = Object.getOwnPropertyNames(this.sources).filter((value) => value != "__ob__").sort();
 			return names;
 		},
+		currentFiles: function() {
+			if(this.currentSource) {
+				return this.sources[this.currentSource];
+			} else {
+				return null;
+			}
+		}
+	},
+	watch: {
+		sourceNames: function(sourceNames) {
+			if(sourceNames.length > 0) {
+				this.currentSource = sourceNames[0];
+			}
+		}
 	},
 	created () {
 		this.$vuetify.theme.dark = true
@@ -116,6 +140,9 @@ export default {
 		}
 	},
 	methods: {
+		setCurrentSource: function(source) {
+			this.currentSource = source;
+		},
 		request: async function(route, data, method) {
 			if(method === "GET") {
 				return await fetch(ENDPOINT + route, {
@@ -159,16 +186,10 @@ export default {
 			this.sources = [];
 		},
 		fetchSources: async function() {
-			const resp = await this.request("/sources", {}, "GET");
+			const resp = await this.request("/files", {}, "GET");
 			const resp_data = await resp.json();
-			console.log(resp_data);
 
-			let sources = {};
-			for(var s = 0; s < resp_data.response.length; s++) {
-				sources[resp_data.response[s]] = null;
-			}
-
-			this.sources = sources;
+			this.sources = resp_data.response.files;
 		},
 		focusPassword() {
 			this.$refs["passwordInput"].focus();
