@@ -27,7 +27,7 @@
 			<v-toolbar-title>File-Sorter</v-toolbar-title>
 
 			<v-spacer></v-spacer>
-			<v-dialog v-model="dialog" persistent max-width="500" v-if="jwt == null">
+			<v-dialog v-model="loginDialog" persistent max-width="500" v-if="jwt == null">
 				<template v-slot:activator="{on, attrs}">
 					<v-btn color="primary" dark v-bind="attrs" v-on="on">
 						Login
@@ -52,7 +52,7 @@
 					</v-card-text>
 					<v-card-actions>
 						<v-spacer></v-spacer>
-						<v-btn color="blue darken-1" text @click="dialog = false">Cancel</v-btn>
+						<v-btn color="blue darken-1" text @click="loginDialog = false">Cancel</v-btn>
 						<v-btn color="blue darken-1" text @click="doLogin()">Login</v-btn>
 					</v-card-actions>
 				</v-card>
@@ -73,12 +73,25 @@
 					>
 					<v-list v-if="currentFiles != null && currentFiles.length > 0" min-width="30%">
 						<v-list-item v-for="file in currentFiles" :key="file" link>
-							<v-list-item-icon>
-								<v-icon>mdi-file</v-icon>
-							</v-list-item-icon>
-							<v-list-item-content>
-								<v-list-item-title v-text="file"></v-list-item-title>
-							</v-list-item-content>
+							<v-menu offset-y>
+								<template v-slot:activator="{ on, attrs }">
+									<v-list-item-icon>
+										<v-icon>mdi-file</v-icon>
+									</v-list-item-icon>
+				<v-list-item-content>
+					<v-list-item-title v-text="file" v-on="on" v-bind="attrs"></v-list-item-title>
+				</v-list-item-content>
+								</template>
+								<v-list>
+									<v-list-item
+										v-for="destination in destinations"
+										:key="destination"
+										@click="moveFile(file, destination)"
+										>
+										<v-list-item-title>{{ destination }}</v-list-item-title>
+									</v-list-item>
+								</v-list>
+							</v-menu>
 						</v-list-item>
 					</v-list>
 				</v-row>
@@ -100,7 +113,7 @@ export default {
 	},
 	data: () => ({
 		drawer: null,
-		dialog: null,
+		loginDialog: null,
 
 		login: null,
 		password: null,
@@ -109,6 +122,8 @@ export default {
 		savePassword: true,
 		sources: {},
 		currentSource: null,
+
+		destinations: [],
 	}),
 	computed: {
 		sourceNames: function() {
@@ -137,6 +152,7 @@ export default {
 		if(localStorage.jwt) {
 			this.jwt = localStorage.jwt;
 			await this.fetchSources();
+			await this.fetchDests();
 		}
 	},
 	methods: {
@@ -158,7 +174,7 @@ export default {
 			}
 		},
 		doLogin: async function() {
-			this.dialog = false;
+			this.loginDialog = false;
 
 			const resp = await fetch(ENDPOINT + "/login", {
 				method: "POST", 
@@ -175,6 +191,7 @@ export default {
 						localStorage.jwt = this.jwt;
 					}
 					await this.fetchSources();
+					await this.fetchDests();
 				} else {
 					alert("Login failed: " + JSON.stringify(resp_body.error))
 				}
@@ -183,13 +200,24 @@ export default {
 		},
 		logout() {
 			this.jwt = null;
-			this.sources = [];
+			this.sources = {};
 		},
 		fetchSources: async function() {
 			const resp = await this.request("/files", {}, "GET");
 			const resp_data = await resp.json();
 
 			this.sources = resp_data.response.files;
+		},
+		fetchDests: async function() {
+			const resp = await this.request("/destinations", {}, "GET");
+			const resp_data = await resp.json();
+
+			this.destinations = resp_data.response;
+		},
+		moveFile: async function(name, destination){
+			await this.request("/files/" + this.currentSource + "/" + name + "/" + destination, {}, "PUT");
+			
+			await this.fetchSources();
 		},
 		focusPassword() {
 			this.$refs["passwordInput"].focus();
