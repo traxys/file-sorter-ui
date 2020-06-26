@@ -6,7 +6,7 @@
 			clipped
 			>
 			<v-list dense>
-				<template v-for="source in sources">
+				<template v-for="source in sourceNames">
 					<v-list-item link :key="source">
 						<v-list-item-action>
 							<v-icon>mdi-folder-move</v-icon>
@@ -97,8 +97,15 @@ export default {
 
 		jwt: null,
 		savePassword: true,
-		sources: [],
+		sources: {},
 	}),
+	computed: {
+		sourceNames: function() {
+			const names = Object.getOwnPropertyNames(this.sources).filter((value) => value != "__ob__");
+			console.log(names);
+			return names;
+		},
+	},
 	created () {
 		this.$vuetify.theme.dark = true
 	},
@@ -156,7 +163,12 @@ export default {
 			const resp_data = await resp.json();
 			console.log(resp_data);
 
-			this.sources = resp_data.response;
+			let sources = {};
+			for(var s = 0; s < resp_data.response.length; s++) {
+				sources[resp_data.response[s]] = null;
+			}
+
+			this.sources = sources;
 		},
 		focusPassword() {
 			this.$refs["passwordInput"].focus();
