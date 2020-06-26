@@ -27,7 +27,7 @@
 			<v-toolbar-title>File-Sorter</v-toolbar-title>
 
 			<v-spacer></v-spacer>
-			<v-dialog v-model="dialog" persistent max-width="500">
+			<v-dialog v-model="dialog" persistent max-width="500" v-if="jwt == null">
 				<template v-slot:activator="{on, attrs}">
 					<v-btn color="primary" dark v-bind="attrs" v-on="on">
 						Login
@@ -46,6 +46,7 @@
 								<v-col cols="12">
 									<v-text-field label="Password" required v-model="password" type="password" v-on:keyup.enter="doLogin()" ref="passwordInput"></v-text-field>
 								</v-col>
+								<v-switch v-model="savePassword" class="ma-2" label="Keep me logged in"></v-switch>
 							</v-row>
 						</v-container>
 					</v-card-text>
@@ -56,6 +57,9 @@
 					</v-card-actions>
 				</v-card>
 			</v-dialog>
+			<v-btn color="primary" dark v-if="jwt" @click="logout()">
+				Logout
+			</v-btn>
 		</v-app-bar>
 
 		<v-main>
@@ -92,10 +96,17 @@ export default {
 		password: null,
 
 		jwt: null,
+		savePassword: true,
 		sources: [],
 	}),
 	created () {
 		this.$vuetify.theme.dark = true
+	},
+	async mounted() {
+		if(localStorage.jwt) {
+			this.jwt = localStorage.jwt;
+			await this.fetchSources();
+		}
 	},
 	methods: {
 		request: async function(route, data, method) {
@@ -126,12 +137,19 @@ export default {
 				const resp_body = await resp.json();
 				if(resp_body.status === "Success") {
 					this.jwt = resp_body.response.token;
+					if(this.savePassword) {
+						localStorage.jwt = this.jwt;
+					}
 					await this.fetchSources();
 				} else {
 					alert("Login failed: " + JSON.stringify(resp_body.error))
 				}
 			}
 
+		},
+		logout() {
+			this.jwt = null;
+			this.sources = [];
 		},
 		fetchSources: async function() {
 			const resp = await this.request("/sources", {}, "GET");
